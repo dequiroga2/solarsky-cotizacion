@@ -9,6 +9,10 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// ====== PUERTO Y BASE INTERNA (CLAVE EN RENDER) ======
+const PORT = process.env.PORT || 3000;
+const INTERNAL_BASE = `http://127.0.0.1:${PORT}`;
+
 // Directorio de plantillas (HTML, imágenes y PDFs estáticos)
 const TPL_DIR = path.join(__dirname, 'templates');
 
@@ -30,8 +34,9 @@ app.get('/health', (_req, res) => res.send('ok'));
 
 // ----------------- Helpers -----------------
 
-function buildPageUrl(req, filename, data = {}) {
-  const base = `${req.protocol}://${req.get('host')}/templates/${filename}`;
+// ⚠️ USAR BASE INTERNA, NO EL HOST PÚBLICO
+function buildPageUrl(_req, filename, data = {}) {
+  const base = `${INTERNAL_BASE}/templates/${filename}`;
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(data)) {
     if (v !== undefined && v !== null) params.set(k, String(v));
@@ -42,13 +47,20 @@ function buildPageUrl(req, filename, data = {}) {
 
 async function renderUrlToPdfBuffer(url) {
   const browser = await puppeteer.launch({
-    args: ['--no-sandbox','--disable-setuid-sandbox'],
-    headless: 'new'
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--no-zygote',
+      '--single-process'
+    ],
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
   });
   try {
     const page = await browser.newPage();
     await page.emulateMediaType('screen');
-    await page.goto(url, { waitUntil: 'networkidle0' });
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 120000 });
     const pdf = await page.pdf({
       format: 'Letter',
       printBackground: true,
@@ -77,28 +89,9 @@ function readStaticPdfBuffer(absPath) {
 }
 
 // ----------------- Fórmulas -----------------
-
-/**
- * ENTRADA (desde tu web/n8n): data = {
- *   EMPRESA, CLIENTE, CIUDAD, FECHA (opcional),
- *   ENERGIA, FACTURA
- * }
- * 
- * FÓRMULAS:
- * POTENCIA = ((ENERGIA * 1.2) / (4.2 * 30 * 0.81))
- * PANELES  = ceil(POTENCIA * 1000 / 645)
- * INVERSORES = ceil(POTENCIA / 1.25)
- * INVERSION_TOTAL = POTENCIA * 3,550,000
- * BENEFICIO_TRIBUTARIO = INVERSION_TOTAL / 2
- * TIR = 19% / 3
- * BC = 5 / 2
- * AHORRO_TOTAL (25 años) = 250,000,000 / 3
- * RECUPERACION_INVERSION = 6 / 2
- */
 function computeFields(input = {}) {
   const out = { ...input };
 
-  // FECHA por defecto (si no viene)
   if (!out.FECHA) {
     const d = new Date();
     const dd = String(d.getDate()).padStart(2, '0');
@@ -107,25 +100,22 @@ function computeFields(input = {}) {
     out.FECHA = `${dd}/${mm}/${yyyy}`;
   }
 
-  // Parse helpers
   const num = (v) => {
     if (v === undefined || v === null || v === '') return NaN;
     const n = Number(String(v).toString().replace(/[^0-9.-]/g, ''));
     return isNaN(n) ? NaN : n;
   };
 
-  const ENERGIA = num(out.ENERGIA);   // del cliente
-  const FACTURA = num(out.FACTURA);   // del cliente (si la usas en el diseño)
+  const ENERGIA = num(out.ENERGIA);
+  const FACTURA = num(out.FACTURA);
 
-  // POTENCIA
   if (!('POTENCIA' in out)) {
     const pot = (isNaN(ENERGIA)) ? NaN : (ENERGIA * 1.2) / (4.2 * 30 * 0.81);
-    out.POTENCIA = isNaN(pot) ? '' : (Math.round(pot * 100) / 100).toString(); // 2 decimales
+    out.POTENCIA = isNaN(pot) ? '' : (Math.round(pot * 100) / 100).toString();
   }
 
   const POTENCIA = num(out.POTENCIA);
 
-  // PANELES e INVERSORES
   if (!('PANELES' in out)) {
     const p = isNaN(POTENCIA) ? NaN : Math.ceil((POTENCIA * 1000) / 645);
     out.PANELES = isNaN(p) ? '' : String(p);
@@ -136,7 +126,6 @@ function computeFields(input = {}) {
     out.INVERSORES = isNaN(inv) ? '' : String(inv);
   }
 
-  // INVERSION_TOTAL y BENEFICIO_TRIBUTARIO
   if (!('INVERSION_TOTAL' in out)) {
     const invTot = isNaN(POTENCIA) ? NaN : POTENCIA * 3550000;
     out.INVERSION_TOTAL = isNaN(invTot) ? '' : String(Math.round(invTot));
@@ -149,14 +138,13 @@ function computeFields(input = {}) {
     out.BENEFICIO_TRIBUTARIO = isNaN(ben) ? '' : String(Math.round(ben));
   }
 
-  // TIR, BC, Ahorro 25 años, Recuperación
   if (!('TIR' in out)) {
-    const tir = 0.19 / 3; // 19% / 3
+    const tir = 0.19 / 3;
     out.TIR = (tir * 100).toFixed(2) + '%';
   }
 
   if (!('BC' in out)) {
-    out.BC = (5 / 2).toString(); // 2.5
+    out.BC = (5 / 2).toString();
   }
 
   if (!('AHORRO_TOTAL' in out)) {
@@ -165,31 +153,21 @@ function computeFields(input = {}) {
   }
 
   if (!('RECUPERACION_INVERSION' in out)) {
-    out.RECUPERACION_INVERSION = (6 / 2).toString(); // 3
+    out.RECUPERACION_INVERSION = (6 / 2).toString();
   }
 
-  // Reexpone ENERGIA y FACTURA (por si las quieres imprimir)
-  if (!('ENERGIA' in out) && !isNaN(ENERGIA)) {
-    out.ENERGIA = String(ENERGIA);
-  }
-  if (!('FACTURA' in out) && !isNaN(FACTURA)) {
-    out.FACTURA = String(FACTURA);
-  }
+  if (!('ENERGIA' in out) && !isNaN(ENERGIA)) out.ENERGIA = String(ENERGIA);
+  if (!('FACTURA' in out) && !isNaN(FACTURA)) out.FACTURA = String(FACTURA);
 
   return out;
 }
 
 // ----------------- Endpoint principal -----------------
-
-// POST /render/cotizacion
-// Body esperado: { data: { EMPRESA, CLIENTE, CIUDAD, ENERGIA, FACTURA, FECHA? } }
-// Devuelve: application/pdf con index → index2 → anexo1 → anexo2 → index3 → anexo3
 app.post('/render/cotizacion', async (req, res) => {
   try {
     const inputData = req.body?.data || {};
     const data = computeFields(inputData);
 
-    // Construir URLs para HTML con los datos calculados
     const urlIndex  = buildPageUrl(req, 'index.html', {
       EMPRESA: data.EMPRESA,
       CLIENTE: data.CLIENTE,
@@ -213,7 +191,7 @@ app.post('/render/cotizacion', async (req, res) => {
       BC: data.BC,
       AHORRO_TOTAL: data.AHORRO_TOTAL,
       ENERGIA: data.ENERGIA,
-      AHORRO_MENSUAL: data.AHORRO_MENSUAL || '', // si luego defines fórmula, la agregamos en computeFields
+      AHORRO_MENSUAL: data.AHORRO_MENSUAL || '',
       PAGO1: data.PAGO1 || '',
       PAGO2: data.PAGO2 || '',
       PAGO3: data.PAGO3 || '',
@@ -221,16 +199,16 @@ app.post('/render/cotizacion', async (req, res) => {
       IVA_MATERIALES: data.IVA_MATERIALES || ''
     });
 
-    // Render de HTML → PDF
+    // (Opcional) log para depurar en Render
+    console.log('Rendering URLs:', urlIndex, urlIndex2, urlIndex3);
+
     const pdfIndex  = await renderUrlToPdfBuffer(urlIndex);
     const pdfIndex2 = await renderUrlToPdfBuffer(urlIndex2);
     const pdfIndex3 = await renderUrlToPdfBuffer(urlIndex3);
 
-    // Lee anexos estáticos
     const annexAfter2 = STATIC_PDFS.afterIndex2.map(readStaticPdfBuffer).filter(Boolean);
     const annexAfter3 = STATIC_PDFS.afterIndex3.map(readStaticPdfBuffer).filter(Boolean);
 
-    // Orden final: index → index2 → anexos(2) → index3 → anexo(3)
     const merged = await mergePdfBuffers([
       pdfIndex,
       pdfIndex2,
@@ -243,13 +221,16 @@ app.post('/render/cotizacion', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="cotizacion.pdf"');
     res.send(Buffer.from(merged));
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Render failed', detail: err?.message });
+    console.error('Render error:', err);
+    const wantsJson = req.query.debug === '1';
+    if (wantsJson) {
+      return res.status(500).json({ error: 'Render failed', detail: String(err && err.message || err) });
+    }
+    return res.status(500).send('Render failed');
   }
 });
 
 // Puerto para Render
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('PDF service on http://localhost:' + PORT);
 });
