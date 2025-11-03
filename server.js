@@ -48,7 +48,6 @@ function buildPageUrl(_req, filename, data = {}) {
 async function renderUrlToPdfBuffer(url) {
   const browser = await puppeteer.launch({
     headless: true,
-    executablePath: puppeteer.executablePath(),
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -56,7 +55,6 @@ async function renderUrlToPdfBuffer(url) {
       '--no-zygote',
       '--single-process'
     ],
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
   });
   try {
     const page = await browser.newPage();
