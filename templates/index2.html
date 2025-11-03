@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SolarSky – Detalles del Proyecto (Carta)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --blue-900:#0c2a46; /* azul profundo de las pastillas */
+      --text:#16181d;
+      --muted:#6b7280;
+      --accent:#f4a62a; /* naranja */
+      --accent-2:#ffc53a; /* amarillo */
+      --danger:#d62828; /* rojo LONGI */
+    }
+
+    html,body{height:100%;}
+    body{margin:0;background:#e5e7eb;}
+
+    .page{
+      width:8.5in; height:11in; background:#fff; margin:0 auto; position:relative; overflow:hidden;
+      font-family:'Montserrat',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--text);
+    }
+
+    .logo-corner{ position:absolute; top:0.4in; right:0.45in; height:0.8in; }
+
+    .title{ position:absolute; top:0.55in; left:0.65in; line-height:1.05; }
+    .title .small{ display:block; font-weight:700; font-size:0.24in; color:#1b1e23; }
+    .title .strong{ display:block; font-weight:900; font-size:0.44in; letter-spacing:0.5px; }
+
+    .pill{ background:var(--blue-900); color:#fff; border-radius:0.2in; padding:0.18in 0.5in; font-weight:700; box-shadow:0 4px 18px rgba(0,0,0,.08); width: 2.3in; text-align: end;
+      display:inline-block; font-size:0.2in; letter-spacing:.2px; position:relative; z-index:2; }
+    .pill.small{ font-size:0.18in; padding:0.14in 0.28in; }
+    .pill .brand-red{ color:var(--danger); font-weight:900; letter-spacing:.2px; }
+
+    .img{ position:absolute; display:block; z-index:5; }
+
+    .panels-top{ left:0.70in; top:1.55in; height:1.35in; }
+    /* .sun-dot { Eliminar o comentar esta regla CSS si existiera, ya que la imagen del sol se elimina del HTML } */
+    .pill-1{ position:absolute; left:1.5in; top:2.05in; }
+
+    .inverter{ right:0.85in; top:2.30in; height:2.5in; }
+    .pill-2{ 
+        position:absolute; 
+        right:1.9in; 
+        top:3.4in; 
+        padding-left:0.5in; 
+        padding-right:0.50in;
+        text-align: center;
+    }
+
+    .rack{ left:0.75in; top:4.7in; height:1.2in; }
+    .pill-3{ position:absolute; left:2.6in; top:4.8in; height: 0.6in; text-align: center; padding: 0.13in 0.6in;}
+
+    .crew{ left:3.00in; top:6in; height:1.10in; }
+    .pill-4{ position:absolute; left:4.1in; top:6in; font-size:0.18in; padding:0.16in 0.35in; width:3.0in; text-align:center; }
+
+    .star-wrap{ 
+        position:absolute; 
+        top: 8.3in;
+        left:1.4in;  
+        height:4.5in;
+        width: 5in;
+        z-index:1; 
+    }
+    .star-img{ position:absolute; left:0.10in; bottom:0; width:6in; height:auto; }
+    .star-text{ 
+        position:absolute; 
+        left:1.5in; 
+        right:0; 
+        top:0in; 
+        text-align:center; 
+        color:#1b1e23; 
+    }
+    .star-text .g1{ font-weight:700; font-size:0.22in; }
+    .star-text .g2{ font-weight:900; font-size:0.55in; letter-spacing:0.6px; }
+    .star-text .g3{ font-weight:600; font-size:0.19in; margin-top:0.04in; }
+    .star-text .g4{ font-weight:600; font-size:0.15in; margin-top:0.06in; width:4.0in; margin-left:auto; margin-right:auto; line-height:1.30; color: white; width: 2in;}
+
+    .globe{ 
+        position:absolute;
+        top: 9in; 
+        right: 5.2in; 
+        height:5in; 
+        z-index:6; 
+    }
+
+    .bottom-text {
+        position: absolute;
+        bottom: 0.5in;
+        top: 10in;
+        left: 3.1in;
+        width: 3.5in;
+        font-size: 0.15in;
+        font-weight: bold;
+        line-height: 1.4;
+        color: #1b1e23;
+        z-index: 10;
+        text-align: center;
+        font-style: var(--text);
+    }
+
+  </style>
+</head>
+<body>
+  <section class="page">
+    <img class="logo-corner" src="logo2.png" alt="Logo SolarSky" />
+
+    <div class="title">
+      <span class="small">Detalles del</span>
+      <span class="strong">PROYECTO</span>
+    </div>
+
+    <img class="img panels-top" src="paneles1.png" alt="Paneles solares" />
+    <div class="pill pill-1">{{PANELES}} Paneles<br/>645w&nbsp;&nbsp;<span class="brand-red">LONGI</span></div>
+
+    <img class="img inverter" src="inversor.png" alt="Inversor" />
+    <div class="pill pill-2">{{INVERSORES}} Inversores (GROWATT)<br/>60 kw</div>
+
+    <img class="img rack" src="paneles2.png" alt="Estructura panel" />
+    <div class="pill pill-3">{{PANELES}} Estructura soporte<br/>para panel solar.</div>
+
+    <img class="img crew" src="personas.png" alt="Equipo instalación" />
+    <div class="pill pill-4">1 AÑO DE SERVICIO<br/>TÉCNICO Y LIMPIEZA<br/>TOTALMENTE GRATIS</div>
+
+    <div class="star-wrap">
+      <img class="star-img" src="estrella.png" alt="Estrella dorada" />
+      <div class="star-text">
+        <div class="g1">Garantía de</div>
+        <div class="g2">5 AÑOS</div>
+        <div class="g3">sobre la instalación</div>
+        <div class="g4">1 año de servicio técnico y limpieza gratis*</div>
+      </div>
+    </div>
+
+    <img class="img globe" src="mundo.png" alt="Planeta con panel" />
+
+    <div class="bottom-text">
+        Paneles solares con 15 años de garantía con la marca por defectos de fábrica y 30 años de garantía por eficiencia de generación menos del 82%.
+    </div>
+  </section>
+
+  <script>
+  (function(){
+    const params = new URLSearchParams(location.search);
+    document.body.innerHTML = document.body.innerHTML.replace(/\{\{(\w+)\}\}/g, function(_, key){
+      return params.has(key) ? params.get(key) : '';
+    });
+  })();
+  </script>
+
+
+</body>
+</html>

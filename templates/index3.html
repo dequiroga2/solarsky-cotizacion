@@ -1,0 +1,425 @@
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Retorno de Inversión SolarSky</title>
+        
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+
+        <style>
+            /* --- PALETA DE COLORES --- */
+            :root {
+                --solar-yellow: #fdb813;
+                --solar-blue-dark: #1a2954;
+                --text-blue-light: #294c9b;
+                --text-gray: #5a5a5a;
+                --text-black: #111;
+                --whatsapp-green: #25D366;
+                --page-bg: #525659;
+            }
+
+            /* --- CONFIGURACIÓN GENERAL --- */
+            body {
+                font-family: 'Montserrat', sans-serif;
+                background-color: var(--page-bg);
+                margin: 0;
+                padding: 20px 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                color: var(--text-black);
+                
+                /* Importante para la impresión */
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+            }
+
+            /* --- CONTENEDOR TAMAÑO CARTA --- */
+            .page-letter {
+                width: 8.5in;
+                height: 11in;
+                background-color: white;
+                margin: 20px auto;
+                box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+                
+                /* Esta es la clave: 
+                Todos los elementos internos se posicionarán de forma absoluta 
+                relativos a este contenedor. */
+                position: relative;
+                overflow: hidden;
+                box-sizing: border-box; /* Asegura que el padding no afecte el tamaño */
+            }
+
+            /* --- 1. ENCABEZADO --- */
+            .header-title {
+                position: absolute;
+                top: 0.6in;
+                left: 0.5in;
+                font-size: 16pt;
+                font-weight: 700;
+            }
+            
+            .header-subtitle {
+                position: absolute;
+                top: 0.8in; /* Un poco más abajo */
+                left: 0.5in;
+                font-size: 20pt;
+                font-weight: 900;
+            }
+
+            .header-logo {
+                position: absolute;
+                top: 0.5in;
+                right: 0.5in;
+                width: 1.0in; /* Ajusta este ancho según tu logo */
+                height: auto;
+            }
+
+            /* --- 2. BLOQUE DE INVERSIÓN (Centro-Superior) --- */
+            .investment-box {
+                position: absolute;
+                top: 1.4in;
+                left: 2.1in;
+                right: 2.1in;
+                border: 12px solid var(--solar-yellow); /* <-- CAMBIO: Borde mucho más grueso */
+                border-radius: 20px;
+                text-align: center;
+                padding: 10px;
+            }
+            .investment-box .label {
+                font-size: 14pt;
+                font-weight: 700;
+                color: var(--text-black);
+            }
+            .investment-box .value {
+                font-size: 36pt;
+                font-weight: 900;
+                color: var(--text-black);
+                line-height: 1.1;
+            }
+
+            .benefits-box {
+                position: absolute;
+                top: 2.6in;
+                left:50%;
+                transform:translateX(-50%);
+                background: var(--solar-yellow);
+                border-radius: 5px;
+                text-align: center;
+                padding: 1px 15px; /* <-- CAMBIO: Menos padding vertical para hacerlo más bajo */
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                width: 2in;
+                height: 0.4in; /* <-- CAMBIO: Altura reducida */
+            }
+            .benefits-box .label {
+                font-size: 11pt;
+                font-weight: 600; /* <-- CAMBIO: Reducido de 700 (bold) a 600 (semi-bold) */
+                color: var(--text-black);
+            }
+            .benefits-box .value {
+                font-size: 15pt;
+                font-weight: 900;
+                color: var(--text-black);
+                line-height: 1.1;
+            }
+
+            .payback-title {
+                position: absolute;
+                top: 3.3in;
+                width: 100%;
+                text-align: center;
+                font-size: 15pt;
+                font-weight: 900;
+            }
+            .payback-years {
+                position: absolute;
+                top: 3.5in;
+                width: 100%;
+                text-align: center;
+                font-size: 30pt;
+                font-weight: 900;
+            }
+
+            /* --- 3. COLUMNA IZQUIERDA (Datos) --- */
+            .left-column {
+                position: absolute;
+                top: 4.4in;
+                left: 0.8in;
+                width: 3.5in;
+            }
+            .data-item { /* Nuevo contenedor para cada par label/value */
+                margin-bottom: 0.25in;
+                text-align: center;
+            }
+            
+            .data-item .data-bar { /* Solo el fondo amarillo del label */
+                display: inline-block; /* Para que el fondo se ajuste al texto */
+                background-color: var(--solar-yellow);
+                border-radius: 10px;
+                padding: 1px 1px;
+                font-size: 17pt;
+                font-weight: 900;
+                color: var(--text-black);
+                margin-bottom: 5px; /* Espacio entre el label y el value */
+                width: 2.5in; /* <-- Define un ancho fijo (ajusta este valor) */
+                text-align: center; /* <-- Centra el texto (como "TIR") */
+                box-sizing: border-box;
+            }
+            .data-item .value { /* El valor numérico debajo */
+                display: block; /* Para que esté en una nueva línea */
+                font-size: 20pt;
+                font-weight: 900;
+                color: var(--text-black); /* Cambiado a negro */
+                line-height: 1.1;
+                text-align: center;
+            }
+            /* Ajuste para el ítem "Ahorro" que es más alto */
+            .data-item.ahorro .value {
+                font-size: 18pt;
+            }
+            
+            /* --- 4. COLUMNA DERECHA (Pagos) --- */
+            .right-column {
+                position: absolute;
+                top: 4.4in;
+                left: 4.7in;
+                right: 0.5in;
+                width: 3.5in;
+            }
+
+            .payment-box {
+                background-color: var(--solar-blue-dark);
+                color: white;
+                border-radius: 15px;
+                padding: 1px 1px;
+                margin-bottom: 0.1in;
+                text-align: center; /* Alineado a la izquierda */
+                display: flex; /* Usar flexbox para alinear contenido */
+                flex-direction: column; /* Apilar elementos */
+                justify-content: center; /* Centrar verticalmente */
+                height: 0.9in; /* Altura fija para que todas las cajas sean iguales */
+                position: relative; /* Para posicionar el monto */
+                width: 3in;
+            }
+            .payment-box .title {
+                font-size: 11pt;
+                font-weight: 900;
+                color: white;
+            }
+            .payment-box .description {
+                font-size: 10pt;
+                color: #eee;
+                line-height: 1.4;
+                margin: 4px 0;
+            }
+            .payment-box .amount {
+                font-size: 14pt;
+                font-weight: 700;
+                color: white;
+                text-align: center;
+            }
+
+            .contact-info {
+                text-align: left;
+                padding-top: 0.1in;
+            }
+            
+            .whatsapp-icon {
+                /* SVG del ícono de WhatsApp */
+                width: 90px;
+                vertical-align: middle;
+                margin-right: 8px;
+            }
+            
+            .contact-details {
+                display: inline-block;
+                vertical-align: middle;
+                text-align: left;
+            }
+
+            .contact-details .label {
+                font-size: 11pt;
+                color: var(--whatsapp-green);
+                font-weight: 700;
+                display: block;
+                line-height: 1.3;
+            }
+            .contact-details .info {
+                font-size: 10pt;
+                color: var(--text-gray);
+                font-weight: 700;
+                display: block;
+                line-height: 1.4;
+            }
+
+            /* --- 5. FOOTER (Caja Amarilla) --- */
+            .footer-box {
+                position: absolute;
+                bottom: 0in;
+                left: 0.5in;
+                right: 0.5in;
+                background-color: var(--solar-yellow);
+                padding: 20px 70px;
+                border-radius: 0px;
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+            }
+            .footer-box .promo-text {
+                font-size: 12pt;
+                font-weight: 700;
+                color: var(--text-black);
+                margin: 0;
+                padding: 0;
+            }
+            .footer-box ul {
+                list-style: none;
+                padding-left: 0;
+                margin: 10px 0 0 0;
+            }
+            .footer-box ul li {
+                font-size: 12pt;
+                color: #333;
+                font-weight: 700;
+                line-height: 1.5;
+            }
+            .footer-box ul li strong {
+                color: var(--text-black);
+            }
+
+            /* --- ESTILOS DE IMPRESIÓN --- */
+            @media print {
+                body {
+                    background-color: white;
+                    padding: 0;
+                    margin: 0;
+                }
+                .page-letter {
+                    margin: 0;
+                    box-shadow: none;
+                    width: 100%;
+                    height: 100%;
+                    padding: 0;
+                }
+            }
+        </style>
+    </head>
+    <body>
+
+        <div class="page-letter">
+
+            <div class="header-title">Inversión, Forma de pago y</div>
+            <div class="header-subtitle">RETORNO DE INVERSIÓN</div>
+            
+            <img src="logo2.png" alt="Logo SolarSky" class="header-logo">
+
+
+            <div class="investment-box">
+                <div class="label">inversión Total en Energía Solar</div>
+                <div class="value">${{INVERSION_TOTAL}}</div>
+            </div>
+
+            <div class="benefits-box">
+                <div class="label">$ Beneficios tributarios</div>
+                <div class="value">${{BENEFICIO_TRIBUTARIO}}</div>
+            </div>
+
+            <div class="payback-title">RECUPRACION DE LA INVERSION EN</div>
+            <div class="payback-years">{{RECUPERACION_INVERSION}} AÑOS</div>
+
+
+            <div class="left-column">
+                
+                <div class="data-item">
+                    <div class="data-bar">TIR</div>
+                    <div class="value">{{TIR}}%</div>
+                </div>
+
+                <div class="data-item">
+                    <div class="data-bar">B/G</div>
+                    <div class="value">{{BC}}</div>
+                </div>
+                
+                <div class="data-item ahorro">
+                    <div class="data-bar">Ahorro 25 años</div>
+                    <div class="value">${{AHORRO_MENSUAL}}</div>
+                </div>
+
+                <div class="data-item">
+                    <div class="data-bar">KWH/MES</div>
+                    <div class="value">{{ENERGIA}}</div>
+                </div>
+
+                <div class="data-item">
+                    <div class="data-bar">PRECIO FACTURA</div>
+                    <div class="value">${{FACTURA}}</div>
+                </div>
+
+            </div>
+
+
+            <div class="right-column">
+
+                <div class="payment-box">
+                    <div class="title">Primer pago</div>
+                    <div class="description">30% firma al contrato</div>
+                    <div class="amount">${{PAGO1}}</div>
+                </div>
+
+                <div class="payment-box">
+                    <div class="title">Segundo pago</div>
+                    <div class="description">20% entrega de equipos</div>
+                    <div class="amount">${{PAGO2}}</div>
+                </div>
+
+                <div class="payment-box">
+                    <div class="title">Tercer pago</div>
+                    <div class="description">40% terminación de obra</div>
+                    <div class="amount">${{PAGO3}}</div>
+                </div>
+
+                <div class="payment-box">
+                    <div class="title">cuarto pago</div>
+                    <div class="description">10% entrega certificación RETIE</div>
+                    <div class="amount">${{PAGO4}}</div>
+                </div>
+
+                <div class="contact-info">
+                    <img src="whatsapp.png" alt="WhatsApp" class="whatsapp-icon">
+                    
+                    <div class="contact-details">
+                        <span class="info">Comercial@solarsky.com</span>
+                        <span class="info">L.comercia@solarsky.com</span>
+                        <span class="info">3166296771</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="footer-box">
+                <p class="promo-text">
+                    Paga el 100% del proyecto y recibes el 5% de descuento
+                </p>
+                <ul>
+                    <li><strong>*TIR:</strong> Tasa Interna de Retorno.</li>
+                    <li><strong>*B/C:</strong> Por cada peso invertido, el cliente recibirá 20 en beneficio.</li>
+                    <li><strong>*IVA MATERIALES:</strong> $ {{IVA_MATERIALES}} (valor ya incluido en el costo)</li>
+                </ul>
+            </div>
+
+        </div>
+    
+        <script>
+        (function(){
+        const params = new URLSearchParams(location.search);
+        document.body.innerHTML = document.body.innerHTML.replace(/\{\{(\w+)\}\}/g, function(_, key){
+            return params.has(key) ? params.get(key) : '';
+        });
+        })();
+        </script>
+
+
+    </body>
+    </html>
