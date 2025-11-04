@@ -306,6 +306,22 @@ function computeFields(input = {}) {
   const roi = isNaN(INVERSION_TOTAL) ? NaN : (totalIn + flows[0]) / Math.abs(flows[0]); // (sum cf)/inversión
   out.ROI = isFinite(roi) ? (roi * 100).toFixed(1) + '%' : '';
 
+  // --- ⬇️ AQUÍ ESTÁN LOS NUEVOS CÁLCULOS DE PAGO ⬇️ ---
+  if (!isNaN(INVERSION_TOTAL)) {
+    // Si no vienen en el input o están vacíos, calcúlalos
+    if (!('PAGO1' in out) || out.PAGO1 === '') {
+      out.PAGO1 = String(Math.round(INVERSION_TOTAL * 0.30));
+    }
+    if (!('PAGO2' in out) || out.PAGO2 === '') {
+      out.PAGO2 = String(Math.round(INVERSION_TOTAL * 0.20));
+    }
+    if (!('PAGO3' in out) || out.PAGO3 === '') {
+      out.PAGO3 = String(Math.round(INVERSION_TOTAL * 0.40));
+    }
+    if (!('PAGO4' in out) || out.PAGO4 === '') {
+      out.PAGO4 = String(Math.round(INVERSION_TOTAL * 0.10));
+    }
+  }
   // ------- Formateos finales -------
   if (!('ENERGIA' in out)) out.ENERGIA = isNaN(ENERGIA) ? '' : String(ENERGIA);
   if (!('FACTURA' in out)) out.FACTURA = isNaN(FACTURA) ? '' : String(FACTURA);
