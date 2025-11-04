@@ -90,135 +90,240 @@ function readStaticPdfBuffer(absPath) {
 
 // ----------------- Fórmulas -----------------
 // ----------------- Fórmulas -----------------
+// ----------------- Helpers financieros -----------------
+function toNum(v) {
+  if (v === undefined || v === null || v === '') return NaN;
+  const n = Number(String(v).toString().replace(/[^0-9.-]/g, ''));
+  return isNaN(n) ? NaN : n;
+}
+
+// NPV de un flujo anual (t0..tn) a tasa r (anual)
+function npv(rate, flows) {
+  return flows.reduce((acc, cf, t) => acc + cf / Math.pow(1 + rate, t), 0);
+}
+
+// IRR por Newton-Raphson con fallback a búsqueda
+function irr(flows, guess = 0.1) {
+  const maxIter = 100;
+  const tol = 1e-7;
+
+  // Derivada de NPV con respecto a r
+  const dNPV = (r) =>
+    flows.reduce((acc, cf, t) => {
+      if (t === 0) return acc;
+      return acc - (t * cf) / Math.pow(1 + r, t + 1);
+    }, 0);
+
+  let r = guess;
+  for (let i = 0; i < maxIter; i++) {
+    const f = npv(r, flows);
+    const df = dNPV(r);
+    if (Math.abs(df) < 1e-12) break;
+    const rNext = r - f / df;
+    if (!isFinite(rNext)) break;
+    if (Math.abs(rNext - r) < tol) return rNext;
+    r = rNext;
+  }
+
+  // Fallback: búsqueda en rango [-0.9, 5] (−90% a 500%)
+  let low = -0.9, high = 5.0, fLow = npv(low, flows), fHigh = npv(high, flows);
+  if (fLow * fHigh > 0) return NaN; // no garantiza raíz
+  for (let i = 0; i < 200; i++) {
+    const mid = (low + high) / 2;
+    const fMid = npv(mid, flows);
+    if (Math.abs(fMid) < tol) return mid;
+    if (fLow * fMid < 0) {
+      high = mid; fHigh = fMid;
+    } else {
+      low = mid; fLow = fMid;
+    }
+  }
+  return NaN;
+}
+
+// Payback simple (años hasta recuperar inversión) a partir de flujos anuales
+function paybackYears(flows) {
+  let cum = 0;
+  for (let t = 0; t < flows.length; t++) {
+    cum += flows[t];
+    if (cum >= 0) {
+      // Interpolación lineal dentro del año t
+      const prevCum = cum - flows[t];
+      const frac = flows[t] !== 0 ? (0 - prevCum) / flows[t] : 0;
+      return t - 1 + Math.max(0, Math.min(1, frac));
+    }
+  }
+  return NaN; // no se recupera en el horizonte evaluado
+}
+
+// Formato miles Colombia
+function formatCO(v) {
+  const n = toNum(v);
+  if (isNaN(n)) return '';
+  return n.toLocaleString('es-CO');
+}
+
+// ----------------- Fórmulas -----------------
 function computeFields(input = {}) {
-  const out = { ...input };
+  const out = { ...input };
 
+  // === CONSTANTES EDITABLES ===
+  const YEARS = 25;          // horizonte de evaluación
+  const DISCOUNT = 0.12;     // tasa de descuento anual (12%)
+  const SAVINGS_RATE = 0.80; // % de la factura que realmente se ahorra (fijos dejan ~20%)
+  const O_M_RATE = 0.01;     // O&M anual como % de la inversión (1%)
+  const DEGRAD = 0.005;      // degradación anual de ahorro (0.5%/año). Pon 0 si no quieres degradación
+  const VAT = 0.19;          // IVA Colombia 19%
+  const MATERIALES_SHARE = 0.60; // % de la inversión que corresponde a materiales (para IVA)
+  const TAX_BENEFIT_MODE = 'YEAR1'; // 'YEAR1' o 'DISTRIB_5Y' (distribuir beneficio tributario 5 años)
+  // ============================
+
+  // Fecha local CO
   if (!out.FECHA) {
-      const options = {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        timeZone: 'America/Bogota' // La clave está aquí
-      };
-      // Esto genera la fecha correcta para Colombia (dd/mm/yyyy)
-      out.FECHA = new Date().toLocaleDateString('es-CO', options);
-  }
+    const options = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Bogota' };
+    out.FECHA = new Date().toLocaleDateString('es-CO', options);
+  }
 
-  const num = (v) => {
-    if (v === undefined || v === null || v === '') return NaN;
-    const n = Number(String(v).toString().replace(/[^0-9.-]/g, ''));
-    return isNaN(n) ? NaN : n;
-  };
+  // Números base
+  const ENERGIA = toNum(out.ENERGIA);   // kWh/mes (desde tu celda 440)
+  const FACTURA = toNum(out.FACTURA);   // $/mes pre-solar (si no viene, lo dejamos NaN)
 
-  // --- ⬇️ NUEVA FUNCIÓN DE FORMATO ⬇️ ---
-  /**
-   * Formatea un número con puntos como separadores de miles (estilo Colombia)
-   * @param {number | string} v El valor a formatear
-   * @returns {string} El valor formateado, o un string vacío si no es válido
-   */
-  const formatNum = (v) => {
-    const n = num(v); // Convierte a número limpio
-    if (isNaN(n)) return '';
-    // 'es-CO' usa puntos como separadores de miles.
-    return n.toLocaleString('es-CO'); 
-  };
-  // --- ⬆️ FIN DE LA NUEVA FUNCIÓN ⬆️ ---
+  // Potencia, paneles, inversores (tus reglas)
+  if (!('POTENCIA' in out)) {
+    const pot = isNaN(ENERGIA) ? NaN : (ENERGIA * 1.2) / (4.2 * 30 * 0.81);
+    out.POTENCIA = isNaN(pot) ? '' : (Math.round(pot * 100) / 100).toString();
+  }
+  const POTENCIA = toNum(out.POTENCIA);
 
-  const ENERGIA = num(out.ENERGIA);
-  const FACTURA = num(out.FACTURA);
+  if (!('PANELES' in out)) {
+    const p = isNaN(POTENCIA) ? NaN : Math.ceil((POTENCIA * 1000) / 645);
+    out.PANELES = isNaN(p) ? '' : String(p);
+  }
 
-  if (!('POTENCIA' in out)) {
-    const pot = (isNaN(ENERGIA)) ? NaN : (ENERGIA * 1.2) / (4.2 * 30 * 0.81);
-    out.POTENCIA = isNaN(pot) ? '' : (Math.round(pot * 100) / 100).toString();
-  }
+  if (!('INVERSORES' in out)) {
+    const inv = isNaN(POTENCIA) ? NaN : Math.ceil(POTENCIA / 1.25);
+    out.INVERSORES = isNaN(inv) ? '' : String(inv);
+  }
 
-  const POTENCIA = num(out.POTENCIA);
+  if (!('INVERSION_TOTAL' in out)) {
+    const invTot = isNaN(POTENCIA) ? NaN : POTENCIA * 3_550_000;
+    out.INVERSION_TOTAL = isNaN(invTot) ? '' : String(Math.round(invTot));
+  }
+  const INVERSION_TOTAL = toNum(out.INVERSION_TOTAL);
 
-  if (!('PANELES' in out)) {
-    const p = isNaN(POTENCIA) ? NaN : Math.ceil((POTENCIA * 1000) / 645);
-    out.PANELES = isNaN(p) ? '' : String(p);
-  }
+  // IVA de materiales
+  // Base materiales: si no te llega `MATERIALES_BASE` por input, usamos un % de la inversión total
+  const MATERIALES_BASE = ('MATERIALES_BASE' in out) ? toNum(out.MATERIALES_BASE)
+                        : (isNaN(INVERSION_TOTAL) ? NaN : INVERSION_TOTAL * MATERIALES_SHARE);
+  const IVA_MATERIALES = isNaN(MATERIALES_BASE) ? NaN : MATERIALES_BASE * VAT;
+  out.IVA_MATERIALES = formatCO(IVA_MATERIALES);
 
-  if (!('INVERSORES' in out)) {
-    const inv = isNaN(POTENCIA) ? NaN : Math.ceil(POTENCIA / 1.25);
-    out.INVERSORES = isNaN(inv) ? '' : String(inv);
-  }
+  // Beneficio tributario (como en tu Excel: 50% de la inversión)
+  if (!('BENEFICIO_TRIBUTARIO' in out)) {
+    const ben = isNaN(INVERSION_TOTAL) ? NaN : INVERSION_TOTAL / 2;
+    out.BENEFICIO_TRIBUTARIO = isNaN(ben) ? '' : String(Math.round(ben));
+  }
+  const BENEFICIO_TRIBUTARIO = toNum(out.BENEFICIO_TRIBUTARIO);
 
-  if (!('INVERSION_TOTAL' in out)) {
-    const invTot = isNaN(POTENCIA) ? NaN : POTENCIA * 3550000;
-    out.INVERSION_TOTAL = isNaN(invTot) ? '' : String(Math.round(invTot));
-  }
+  // Ahorro mensual estimado
+  // Si tienes FACTURA mensual, usamos un % de ahorro (configurable). Si no, lo dejamos NaN.
+  const ahorroMensual0 = isNaN(FACTURA) ? NaN : FACTURA * SAVINGS_RATE;
 
-  const INVERSION_TOTAL = num(out.INVERSION_TOTAL); // Se usa para los pagos
+  // Construcción de flujos ANUALES
+  // t=0: -inversión (puedes sumar o no el IVA materiales si aplica al desembolso)
+  // t>=1: +ahorro anual degradado - O&M + (beneficio tributario en el año que corresponda)
+  const flows = [];
+  // t=0
+  flows.push(isNaN(INVERSION_TOTAL) ? NaN : -INVERSION_TOTAL);
+  // años 1..YEARS
+  for (let y = 1; y <= YEARS; y++) {
+    // ahorro anual con degradación
+    const ahMes = isNaN(ahorroMensual0) ? 0 : ahorroMensual0 * Math.pow(1 - DEGRAD, y - 1);
+    const ahorroAnual = ahMes * 12;
 
-  if (!('BENEFICIO_TRIBUTARIO' in out)) {
-    const ben = isNaN(INVERSION_TOTAL) ? NaN : INVERSION_TOTAL / 2;
-    out.BENEFICIO_TRIBUTARIO = isNaN(ben) ? '' : String(Math.round(ben));
-  }
+    // O&M anual
+    const oym = isNaN(INVERSION_TOTAL) ? 0 : INVERSION_TOTAL * O_M_RATE;
 
-  if (!('TIR' in out)) {
-    const tir = 0.19 / 3;
-    out.TIR = (tir * 100).toFixed(2) + '%';
-  }
+    // beneficio tributario (si se toma en Y1 o distribuido 5 años)
+    let benY = 0;
+    if (!isNaN(BENEFICIO_TRIBUTARIO)) {
+      if (TAX_BENEFIT_MODE === 'YEAR1' && y === 1) benY = BENEFICIO_TRIBUTARIO;
+      if (TAX_BENEFIT_MODE === 'DISTRIB_5Y' && y <= 5) benY = BENEFICIO_TRIBUTARIO / 5;
+    }
 
-  if (!('BC' in out)) {
-    out.BC = (5 / 2).toString();
-  }
+    const cf = ahorroAnual - oym + benY;
+    flows.push(cf);
+  }
 
-  if (!('AHORRO_TOTAL' in out)) {
-    const ah = 250000000 / 3;
-    out.AHORRO_TOTAL = String(Math.round(ah));
-  }
+  // Ahorro total 25 años (solo suma de ahorros brutos, sin O&M ni beneficios tributarios)
+  if (!('AHORRO_TOTAL' in out)) {
+    let sumaAhorros = 0;
+    if (!isNaN(ahorroMensual0)) {
+      for (let y = 1; y <= YEARS; y++) {
+        const ahMes = ahorroMensual0 * Math.pow(1 - DEGRAD, y - 1);
+        sumaAhorros += ahMes * 12;
+      }
+    }
+    out.AHORRO_TOTAL = String(Math.round(sumaAhorros));
+  }
 
-  if (!('RECUPERACION_INVERSION' in out)) {
-    out.RECUPERACION_INVERSION = (6 / 2).toString();
-  }
+  // B/C ratio = PV(Beneficios) / PV(Costos)
+  // Definimos beneficios: ahorros (y beneficio tributario si lo tratas como beneficio).
+  // Costos: inversión inicial (y O&M) con signo positivo en el denominador.
+  (function computeBC() {
+    // Beneficios anuales (sin signos): ahorro + (beneficio tributario si aplica ese año)
+    const benFlows = [0];
+    const costFlows = [isNaN(INVERSION_TOTAL) ? 0 : INVERSION_TOTAL]; // costo t0 positivo para PV
+    for (let y = 1; y <= YEARS; y++) {
+      const ahMes = isNaN(ahorroMensual0) ? 0 : ahorroMensual0 * Math.pow(1 - DEGRAD, y - 1);
+      const ahorroAnual = ahMes * 12;
+      let benY = 0;
+      if (!isNaN(BENEFICIO_TRIBUTARIO)) {
+        if (TAX_BENEFIT_MODE === 'YEAR1' && y === 1) benY = BENEFICIO_TRIBUTARIO;
+        if (TAX_BENEFIT_MODE === 'DISTRIB_5Y' && y <= 5) benY = BENEFICIO_TRIBUTARIO / 5;
+      }
+      benFlows.push(ahorroAnual + benY);
+      // O&M como costo anual
+      const oym = isNaN(INVERSION_TOTAL) ? 0 : INVERSION_TOTAL * O_M_RATE;
+      costFlows.push(oym);
+    }
+    const pvBen = npv(DISCOUNT, benFlows);
+    const pvCost = npv(DISCOUNT, costFlows);
+    const bc = pvCost > 0 ? pvBen / pvCost : NaN;
+    out.BC = isFinite(bc) ? bc.toFixed(2) : '';
+  })();
 
-  // --- CÁLCULOS DE PAGO (YA LOS TENÍAS) ---
-  if (!isNaN(INVERSION_TOTAL)) {
-    if (!('PAGO1' in out) || out.PAGO1 === '') {
-      out.PAGO1 = String(Math.round(INVERSION_TOTAL * 0.30));
-    }
-    if (!('PAGO2' in out) || out.PAGO2 === '') {
-      out.PAGO2 = String(Math.round(INVERSION_TOTAL * 0.20));
-    }
-    if (!('PAGO3' in out) || out.PAGO3 === '') {
-      out.PAGO3 = String(Math.round(INVERSION_TOTAL * 0.40));
-    }
-    if (!('PAGO4' in out) || out.PAGO4 === '') {
-      out.PAGO4 = String(Math.round(INVERSION_TOTAL * 0.10));
-    }
-  }
+  // IRR
+  const tir = irr(flows);
+  out.TIR = isFinite(tir) ? (tir * 100).toFixed(2) + '%' : '';
 
-  // --- ⬇️ ASIGNACIÓN Y FORMATEO FINAL ⬇️ ---
+  // Payback (años)
+  const pb = paybackYears(flows);
+  out.RECUPERACION_INVERSION = isFinite(pb) ? pb.toFixed(1) : '';
 
-  // Asignar los valores base si no vinieron en el input
+  // ROI simple (beneficios netos / inversión)
+  const totalIn = flows.slice(1).reduce((a, b) => a + b, 0);
+  const roi = isNaN(INVERSION_TOTAL) ? NaN : (totalIn + flows[0]) / Math.abs(flows[0]); // (sum cf)/inversión
+  out.ROI = isFinite(roi) ? (roi * 100).toFixed(1) + '%' : '';
+
+  // ------- Formateos finales -------
   if (!('ENERGIA' in out)) out.ENERGIA = isNaN(ENERGIA) ? '' : String(ENERGIA);
   if (!('FACTURA' in out)) out.FACTURA = isNaN(FACTURA) ? '' : String(FACTURA);
 
-  // AHORA, FORMATEAR TODOS LOS CAMPOS que deben llevar puntos
-  out.INVERSION_TOTAL = formatNum(out.INVERSION_TOTAL);
-  out.BENEFICIO_TRIBUTARIO = formatNum(out.BENEFICIO_TRIBUTARIO);
-  out.AHORRO_TOTAL = formatNum(out.AHORRO_TOTAL);
-  out.FACTURA = formatNum(out.FACTURA);
-  out.ENERGIA = formatNum(out.ENERGIA); // KWH/MES también
-  out.PAGO1 = formatNum(out.PAGO1);
-  out.PAGO2 = formatNum(out.PAGO2);
-  out.PAGO3 = formatNum(out.PAGO3);
-  out.PAGO4 = formatNum(out.PAGO4);
-  out.IVA_MATERIALES = formatNum(out.IVA_MATERIALES);
-  
-  // Los valores que NO llevan puntos (e.g., decimales, porcentajes, enteros simples)
-  // se quedan como están.
-  // out.POTENCIA
-  // out.PANELES
-  // out.INVERSORES
-  // out.TIR
-  // out.BC
-  // out.RECUPERACION_INVERSION
+  out.INVERSION_TOTAL = formatCO(out.INVERSION_TOTAL);
+  out.BENEFICIO_TRIBUTARIO = formatCO(out.BENEFICIO_TRIBUTARIO);
+  out.AHORRO_TOTAL = formatCO(out.AHORRO_TOTAL);
+  out.FACTURA = formatCO(out.FACTURA);
+  out.ENERGIA = formatCO(out.ENERGIA);
+  out.PAGO1 = formatCO(out.PAGO1);
+  out.PAGO2 = formatCO(out.PAGO2);
+  out.PAGO3 = formatCO(out.PAGO3);
+  out.PAGO4 = formatCO(out.PAGO4);
+  out.IVA_MATERIALES = formatCO(out.IVA_MATERIALES);
 
   return out;
 }
+
 
 // ----------------- Endpoint principal -----------------
 app.post('/render/cotizacion', async (req, res) => {
