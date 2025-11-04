@@ -48,6 +48,7 @@ function buildPageUrl(_req, filename, data = {}) {
 async function renderUrlToPdfBuffer(url) {
   const browser = await puppeteer.launch({
     headless: true,
+    executablePath: path.join(__dirname, 'chrome-browser', 'chrome', 'linux-142.0.7444.59', 'chrome-linux64', 'chrome'),
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
