@@ -156,6 +156,22 @@ function computeFields(input = {}) {
     out.RECUPERACION_INVERSION = (6 / 2).toString();
   }
 
+  if (!isNaN(INVERSION_TOTAL)) {
+    // Si no vienen en el input o están vacíos, calcúlalos
+    if (!('PAGO1' in out) || out.PAGO1 === '') {
+      out.PAGO1 = String(Math.round(INVERSION_TOTAL * 0.30));
+    }
+    if (!('PAGO2' in out) || out.PAGO2 === '') {
+    out.PAGO2 = String(Math.round(INVERSION_TOTAL * 0.20));
+    }
+    if (!('PAGO3' in out) || out.PAGO3 === '') {
+    out.PAGO3 = String(Math.round(INVERSION_TOTAL * 0.40));
+    }
+    if (!('PAGO4' in out) || out.PAGO4 === '') {
+      out.PAGO4 = String(Math.round(INVERSION_TOTAL * 0.10));
+    }
+  }
+
   if (!('ENERGIA' in out) && !isNaN(ENERGIA)) out.ENERGIA = String(ENERGIA);
   if (!('FACTURA' in out) && !isNaN(FACTURA)) out.FACTURA = String(FACTURA);
 
@@ -191,7 +207,8 @@ app.post('/render/cotizacion', async (req, res) => {
       BC: data.BC,
       AHORRO_TOTAL: data.AHORRO_TOTAL,
       ENERGIA: data.ENERGIA,
-      AHORRO_MENSUAL: data.AHORRO_MENSUAL || '',
+      AHORRO_MENSUAL: data.AHORRO_TOTAL || '',
+      FACTUIRA: data.FACTURA || '',
       PAGO1: data.PAGO1 || '',
       PAGO2: data.PAGO2 || '',
       PAGO3: data.PAGO3 || '',
