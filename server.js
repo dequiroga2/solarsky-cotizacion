@@ -89,91 +89,133 @@ function readStaticPdfBuffer(absPath) {
 }
 
 // ----------------- Fórmulas -----------------
+// ----------------- Fórmulas -----------------
 function computeFields(input = {}) {
-  const out = { ...input };
+  const out = { ...input };
 
   if (!out.FECHA) {
-    const d = new Date();
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    out.FECHA = `${dd}/${mm}/${yyyy}`;
-  }
+      const options = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'America/Bogota' // La clave está aquí
+      };
+      // Esto genera la fecha correcta para Colombia (dd/mm/yyyy)
+      out.FECHA = new Date().toLocaleDateString('es-CO', options);
+  }
 
-  const num = (v) => {
-    if (v === undefined || v === null || v === '') return NaN;
-    const n = Number(String(v).toString().replace(/[^0-9.-]/g, ''));
-    return isNaN(n) ? NaN : n;
+  const num = (v) => {
+    if (v === undefined || v === null || v === '') return NaN;
+    const n = Number(String(v).toString().replace(/[^0-9.-]/g, ''));
+    return isNaN(n) ? NaN : n;
+  };
+
+  // --- ⬇️ NUEVA FUNCIÓN DE FORMATO ⬇️ ---
+  /**
+   * Formatea un número con puntos como separadores de miles (estilo Colombia)
+   * @param {number | string} v El valor a formatear
+   * @returns {string} El valor formateado, o un string vacío si no es válido
+   */
+  const formatNum = (v) => {
+    const n = num(v); // Convierte a número limpio
+    if (isNaN(n)) return '';
+    // 'es-CO' usa puntos como separadores de miles.
+    return n.toLocaleString('es-CO'); 
   };
+  // --- ⬆️ FIN DE LA NUEVA FUNCIÓN ⬆️ ---
 
-  const ENERGIA = num(out.ENERGIA);
-  const FACTURA = num(out.FACTURA);
+  const ENERGIA = num(out.ENERGIA);
+  const FACTURA = num(out.FACTURA);
 
-  if (!('POTENCIA' in out)) {
-    const pot = (isNaN(ENERGIA)) ? NaN : (ENERGIA * 1.2) / (4.2 * 30 * 0.81);
-    out.POTENCIA = isNaN(pot) ? '' : (Math.round(pot * 100) / 100).toString();
-  }
+  if (!('POTENCIA' in out)) {
+    const pot = (isNaN(ENERGIA)) ? NaN : (ENERGIA * 1.2) / (4.2 * 30 * 0.81);
+    out.POTENCIA = isNaN(pot) ? '' : (Math.round(pot * 100) / 100).toString();
+  }
 
-  const POTENCIA = num(out.POTENCIA);
+  const POTENCIA = num(out.POTENCIA);
 
-  if (!('PANELES' in out)) {
-    const p = isNaN(POTENCIA) ? NaN : Math.ceil((POTENCIA * 1000) / 645);
-    out.PANELES = isNaN(p) ? '' : String(p);
-  }
+  if (!('PANELES' in out)) {
+    const p = isNaN(POTENCIA) ? NaN : Math.ceil((POTENCIA * 1000) / 645);
+    out.PANELES = isNaN(p) ? '' : String(p);
+  }
 
-  if (!('INVERSORES' in out)) {
-    const inv = isNaN(POTENCIA) ? NaN : Math.ceil(POTENCIA / 1.25);
-    out.INVERSORES = isNaN(inv) ? '' : String(inv);
-  }
+  if (!('INVERSORES' in out)) {
+    const inv = isNaN(POTENCIA) ? NaN : Math.ceil(POTENCIA / 1.25);
+    out.INVERSORES = isNaN(inv) ? '' : String(inv);
+  }
 
-  if (!('INVERSION_TOTAL' in out)) {
-    const invTot = isNaN(POTENCIA) ? NaN : POTENCIA * 3550000;
-    out.INVERSION_TOTAL = isNaN(invTot) ? '' : String(Math.round(invTot));
-  }
+  if (!('INVERSION_TOTAL' in out)) {
+    const invTot = isNaN(POTENCIA) ? NaN : POTENCIA * 3550000;
+    out.INVERSION_TOTAL = isNaN(invTot) ? '' : String(Math.round(invTot));
+  }
 
-  const INVERSION_TOTAL = num(out.INVERSION_TOTAL);
+  const INVERSION_TOTAL = num(out.INVERSION_TOTAL); // Se usa para los pagos
 
-  if (!('BENEFICIO_TRIBUTARIO' in out)) {
-    const ben = isNaN(INVERSION_TOTAL) ? NaN : INVERSION_TOTAL / 2;
-    out.BENEFICIO_TRIBUTARIO = isNaN(ben) ? '' : String(Math.round(ben));
-  }
+  if (!('BENEFICIO_TRIBUTARIO' in out)) {
+    const ben = isNaN(INVERSION_TOTAL) ? NaN : INVERSION_TOTAL / 2;
+    out.BENEFICIO_TRIBUTARIO = isNaN(ben) ? '' : String(Math.round(ben));
+  }
 
-  if (!('TIR' in out)) {
-    const tir = 0.19 / 3;
-    out.TIR = (tir * 100).toFixed(2) + '%';
-  }
+  if (!('TIR' in out)) {
+    const tir = 0.19 / 3;
+    out.TIR = (tir * 100).toFixed(2) + '%';
+  }
 
-  if (!('BC' in out)) {
-    out.BC = (5 / 2).toString();
-  }
+  if (!('BC' in out)) {
+    out.BC = (5 / 2).toString();
+  }
 
-  if (!('AHORRO_TOTAL' in out)) {
-    const ah = 250000000 / 3;
-    out.AHORRO_TOTAL = String(Math.round(ah));
-  }
+  if (!('AHORRO_TOTAL' in out)) {
+    const ah = 250000000 / 3;
+    out.AHORRO_TOTAL = String(Math.round(ah));
+  }
 
-  if (!('RECUPERACION_INVERSION' in out)) {
-    out.RECUPERACION_INVERSION = (6 / 2).toString();
-  }
+  if (!('RECUPERACION_INVERSION' in out)) {
+    out.RECUPERACION_INVERSION = (6 / 2).toString();
+  }
 
-  if (!isNaN(INVERSION_TOTAL)) {
-    // Si no vienen en el input o están vacíos, calcúlalos
-    if (!('PAGO1' in out) || out.PAGO1 === '') {
-      out.PAGO1 = String(Math.round(INVERSION_TOTAL * 0.30));
-    }
-    if (!('PAGO2' in out) || out.PAGO2 === '') {
-    out.PAGO2 = String(Math.round(INVERSION_TOTAL * 0.20));
-    }
-    if (!('PAGO3' in out) || out.PAGO3 === '') {
-    out.PAGO3 = String(Math.round(INVERSION_TOTAL * 0.40));
-    }
-    if (!('PAGO4' in out) || out.PAGO4 === '') {
-      out.PAGO4 = String(Math.round(INVERSION_TOTAL * 0.10));
-    }
-  }
+  // --- CÁLCULOS DE PAGO (YA LOS TENÍAS) ---
+  if (!isNaN(INVERSION_TOTAL)) {
+    if (!('PAGO1' in out) || out.PAGO1 === '') {
+      out.PAGO1 = String(Math.round(INVERSION_TOTAL * 0.30));
+    }
+    if (!('PAGO2' in out) || out.PAGO2 === '') {
+      out.PAGO2 = String(Math.round(INVERSION_TOTAL * 0.20));
+    }
+    if (!('PAGO3' in out) || out.PAGO3 === '') {
+      out.PAGO3 = String(Math.round(INVERSION_TOTAL * 0.40));
+    }
+    if (!('PAGO4' in out) || out.PAGO4 === '') {
+      out.PAGO4 = String(Math.round(INVERSION_TOTAL * 0.10));
+    }
+  }
 
-  if (!('ENERGIA' in out) && !isNaN(ENERGIA)) out.ENERGIA = String(ENERGIA);
-  if (!('FACTURA' in out) && !isNaN(FACTURA)) out.FACTURA = String(FACTURA);
+  // --- ⬇️ ASIGNACIÓN Y FORMATEO FINAL ⬇️ ---
+
+  // Asignar los valores base si no vinieron en el input
+  if (!('ENERGIA' in out)) out.ENERGIA = isNaN(ENERGIA) ? '' : String(ENERGIA);
+  if (!('FACTURA' in out)) out.FACTURA = isNaN(FACTURA) ? '' : String(FACTURA);
+
+  // AHORA, FORMATEAR TODOS LOS CAMPOS que deben llevar puntos
+  out.INVERSION_TOTAL = formatNum(out.INVERSION_TOTAL);
+  out.BENEFICIO_TRIBUTARIO = formatNum(out.BENEFICIO_TRIBUTARIO);
+  out.AHORRO_TOTAL = formatNum(out.AHORRO_TOTAL);
+  out.FACTURA = formatNum(out.FACTURA);
+  out.ENERGIA = formatNum(out.ENERGIA); // KWH/MES también
+  out.PAGO1 = formatNum(out.PAGO1);
+  out.PAGO2 = formatNum(out.PAGO2);
+  out.PAGO3 = formatNum(out.PAGO3);
+  out.PAGO4 = formatNum(out.PAGO4);
+  out.IVA_MATERIALES = formatNum(out.IVA_MATERIALES);
+  
+  // Los valores que NO llevan puntos (e.g., decimales, porcentajes, enteros simples)
+  // se quedan como están.
+  // out.POTENCIA
+  // out.PANELES
+  // out.INVERSORES
+  // out.TIR
+  // out.BC
+  // out.RECUPERACION_INVERSION
 
   return out;
 }
