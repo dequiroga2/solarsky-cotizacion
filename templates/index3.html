@@ -24,12 +24,8 @@
             /* --- CONFIGURACIÓN GENERAL --- */
             body {
                 font-family: 'Montserrat', sans-serif;
-                background-color: var(--page-bg);
                 margin: 0;
-                padding: 20px 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
+                padding: 0;
                 color: var(--text-black);
                 
                 /* Importante para la impresión */
@@ -42,8 +38,8 @@
                 width: 8.5in;
                 height: 11in;
                 background-color: white;
-                margin: 20px auto;
-                box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+                margin: 0;
+                box-shadow: none;
                 
                 /* Esta es la clave: 
                 Todos los elementos internos se posicionarán de forma absoluta 
@@ -340,7 +336,7 @@
                 
                 <div class="data-item">
                     <div class="data-bar">TIR</div>
-                    <div class="value">{{TIR}}%</div>
+                    <div class="value">{{TIR}}</div>
                 </div>
 
                 <div class="data-item">
