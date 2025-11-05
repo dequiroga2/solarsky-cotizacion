@@ -185,7 +185,7 @@ function computeFields(input = {}) {
 
   // 5. Asignar valores por defecto a campos ya no calculados
   out.BC = out.BC || ''; // BC ya no se calcula
-  out.IVA_MATERIALES = out.IVA_MATERIALES || ''; // IVA ya no se calcula
+  out.IVA_MATERIALES = formatCO(resultados["PROYECTO!F6"]); // IVA ya no se calcula
 
   // 6. Asignar fecha si no viene
   if (!out.FECHA) {
