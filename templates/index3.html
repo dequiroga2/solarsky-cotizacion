@@ -201,7 +201,7 @@
                 display: flex; /* Usar flexbox para alinear contenido */
                 flex-direction: column; /* Apilar elementos */
                 justify-content: center; /* Centrar verticalmente */
-                height: 0.9in; /* Altura fija para que todas las cajas sean iguales */
+                height: 0.85in; /* Altura fija para que todas las cajas sean iguales */
                 position: relative; /* Para posicionar el monto */
                 width: 3in;
             }
@@ -293,6 +293,10 @@
 
             /* --- ESTILOS DE IMPRESIÓN --- */
             @media print {
+                @page {
+                    size: letter; /* Define el tamaño del papel */
+                    margin: 0;  /* Elimina todos los márgenes de impresión */
+                }
                 body {
                     background-color: white;
                     padding: 0;
