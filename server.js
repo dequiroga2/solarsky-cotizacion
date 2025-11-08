@@ -241,7 +241,7 @@ app.post('/render/cotizacion', async (req, res) => {
       // Datos residuales (usados por el template)
       AHORRO_MENSUAL: data.AHORRO_TOTAL || '', // El template usa AHORRO_TOTAL aquí
       BC: data.BC || '', // Vacío
-      IVA_MATERIALES: data.IVA_MATERIALES || '' // Vacío
+      IVA_MATERIALES: data.IVA_MATERIALES
     });
 
     // (Opcional) log para depurar en Render
